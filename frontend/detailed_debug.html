@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎤 语音翻译系统详细调试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #42b983;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .debug-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 5px solid #42b983;
+        }
+        
+        .log-area {
+            height: 200px;
+            overflow-y: auto;
+            background: #2d2d2d;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        
+        .success { border-color: #28a745; background: #d4edda; color: #155724; }
+        .error { border-color: #dc3545; background: #f8d7da; color: #721c24; }
+        .warning { border-color: #ffc107; background: #fff3cd; color: #856404; }
+        .info { border-color: #17a2b8; background: #d1ecf1; color: #0c5460; }
+        
+        button {
+            background: #42b983;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(66, 185, 131, 0.3);
+        }
+        
+        button:hover {
+            background: #359c6d;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(66, 185, 131, 0.4);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .status-ready { background: #6c757d; }
+        .status-recording { background: #dc3545; animation: blink 1s infinite; }
+        .status-processing { background: #ffc107; }
+        .status-success { background: #28a745; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .test-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 语音翻译系统详细调试面板</h1>
+        
+        <!-- 系统状态检查 -->
+        <div class="debug-section">
+            <h2>🔧 系统状态检查</h2>
+            <div id="system-status" class="log-area"></div>
+            <button onclick="checkSystemStatus()">🔄 重新检查系统状态</button>
+        </div>
+        
+        <!-- 录音功能测试 -->
+        <div class="debug-section">
+            <h2>🎙️ 录音功能测试</h2>
+            <div style="margin: 15px 0;">
+                <span class="status-indicator status-ready" id="recording-status"></span>
+                <span id="recording-text">准备就绪</span>
+            </div>
+            <div class="test-grid">
+                <div>
+                    <button id="start-record-btn" onclick="startDetailedRecording()">▶️ 开始录音测试</button>
+                    <button id="stop-record-btn" onclick="stopDetailedRecording()" disabled>⏹️ 停止录音</button>
+                </div>
+                <div>
+                    <button onclick="testMicrophoneAccess()">🎤 测试麦克风权限</button>
+                    <button onclick="testMediaRecorder()">📹 测试MediaRecorder支持</button>
+                </div>
+            </div>
+            <div id="recording-log" class="log-area"></div>
+        </div>
+        
+        <!-- 网络通信测试 -->
+        <div class="debug-section">
+            <h2>🌐 网络通信测试</h2>
+            <button onclick="testBackendConnection()">🔗 测试后端连接</button>
+            <button onclick="testAudioAPICall()">🎵 测试音频API调用</button>
+            <button onclick="testFullWorkflow()">🔄 测试完整工作流程</button>
+            <div id="network-log" class="log-area"></div>
+        </div>
+        
+        <!-- 控制台输出 -->
+        <div class="debug-section">
+            <h2>🖥️ 控制台输出</h2>
+            <div id="console-output" class="log-area"></div>
+            <button onclick="clearConsole()">🗑️ 清空日志</button>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let consoleOutput = [];
+        
+        // 重写console方法来捕获日志
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole('log', args.join(' '));
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('error', args.join(' '));
+        };
+        
+        console.warn = function(...args) {
+            originalWarn.apply(console, args);
+            addToConsole('warn', args.join(' '));
+        };
+        
+        // 添加到控制台输出区域
+        function addToConsole(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            
+            consoleOutput.push({type, message: logEntry});
+            if (consoleOutput.length > 100) {
+                consoleOutput.shift();
+            }
+            
+            updateConsoleDisplay();
+        }
+        
+        function updateConsoleDisplay() {
+            const consoleEl = document.getElementById('console-output');
+            consoleEl.innerHTML = consoleOutput.map(entry => 
+                `<div class="${entry.type}">${entry.message}</div>`
+            ).join('');
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        // 更新日志显示
+        function updateLog(section, message, type = 'info') {
+            const logEl = document.getElementById(section + '-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `<div class="${type}">[${timestamp}] ${message}</div>`;
+            
+            logEl.innerHTML += logEntry;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        // 更新状态指示器
+        function updateStatusIndicator(status) {
+            const indicator = document.getElementById('recording-status');
+            const text = document.getElementById('recording-text');
+            
+            indicator.className = `status-indicator status-${status}`;
+            text.textContent = {
+                'ready': '准备就绪',
+                'recording': '正在录音',
+                'processing': '处理中',
+                'success': '成功'
+            }[status];
+        }
+        
+        // 系统状态检查
+        async function checkSystemStatus() {
+            const statusEl = document.getElementById('system-status');
+            statusEl.innerHTML = '<div class="info">🔍 正在检查系统状态...</div>';
+            
+            let checks = [];
+            
+            // 检查浏览器支持
+            checks.push({
+                name: '浏览器支持',
+                result: typeof MediaRecorder !== 'undefined',
+                message: typeof MediaRecorder !== 'undefined' ? 
+                    '✅ MediaRecorder API 可用' : 
+                    '❌ MediaRecorder API 不可用'
+            });
+            
+            // 检查HTTPS/localhost
+            checks.push({
+                name: '安全上下文',
+                result: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+                message: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' ?
+                    '✅ 在安全上下文中运行' :
+                    '⚠️ 可能在不安全的上下文中运行'
+            });
+            
+            // 检查后端连接
+            try {
+                const response = await fetch('http://127.0.0.1:8000/health', {timeout: 3000});
+                checks.push({
+                    name: '后端服务',
+                    result: response.ok,
+                    message: response.ok ? 
+                        `✅ 后端服务正常 (${response.status})` : 
+                        `❌ 后端服务异常 (${response.status})`
+                });
+            } catch (error) {
+                checks.push({
+                    name: '后端服务',
+                    result: false,
+                    message: `❌ 无法连接到后端: ${error.message}`
+                });
+            }
+            
+            // 显示结果
+            statusEl.innerHTML = checks.map(check => 
+                `<div class="${check.result ? 'success' : 'error'}">${check.message}</div>`
+            ).join('');
+        }
+        
+        // 测试麦克风权限
+        async function testMicrophoneAccess() {
+            updateLog('recording', '🎤 开始测试麦克风权限...', 'info');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                updateLog('recording', '✅ 麦克风权限获取成功', 'success');
+                
+                // 显示设备信息
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const audioInputs = devices.filter(device => device.kind === 'audioinput');
+                updateLog('recording', `🎧 检测到 ${audioInputs.length} 个音频输入设备`, 'info');
+                
+                // 关闭流
+                stream.getTracks().forEach(track => track.stop());
+                
+            } catch (error) {
+                updateLog('recording', `❌ 麦克风权限获取失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试MediaRecorder支持
+        function testMediaRecorder() {
+            updateLog('recording', '📹 测试MediaRecorder支持...', 'info');
+            
+            if (typeof MediaRecorder === 'undefined') {
+                updateLog('recording', '❌ 浏览器不支持MediaRecorder', 'error');
+                return;
+            }
+            
+            // 检查支持的MIME类型
+            const mimeTypes = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/ogg',
+                'audio/mp4'
+            ];
+            
+            let supportedTypes = [];
+            mimeTypes.forEach(type => {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    supportedTypes.push(type);
+                }
+            });
+            
+            updateLog('recording', `✅ 支持的MIME类型: ${supportedTypes.join(', ')}`, 'success');
+            if (supportedTypes.length === 0) {
+                updateLog('recording', '❌ 没有找到支持的音频格式', 'error');
+            }
+        }
+        
+        // 详细的录音测试
+        async function startDetailedRecording() {
+            if (isRecording) return;
+            
+            updateLog('recording', '🎙️ 开始详细录音测试...', 'info');
+            updateStatusIndicator('recording');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+                
+                updateLog('recording', '✅ 麦克风流获取成功', 'success');
+                
+                // 尝试不同的MIME类型
+                const mimeTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/ogg'
+                ];
+                
+                let selectedMimeType = '';
+                for (let mimeType of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(mimeType)) {
+                        selectedMimeType = mimeType;
+                        break;
+                    }
+                }
+                
+                mediaRecorder = new MediaRecorder(stream, { 
+                    mimeType: selectedMimeType 
+                });
+                
+                updateLog('recording', `✅ MediaRecorder初始化成功 (MIME: ${selectedMimeType})`, 'success');
+                
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        updateLog('recording', `🔊 收到音频数据块: ${event.data.size} 字节`, 'info');
+                        
+                        // 立即测试发送
+                        if (event.data.size > 1000) { // 足够大的数据块才发送
+                            testSendAudioData(event.data);
+                        }
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    updateLog('recording', '⏹️ 录音已停止', 'info');
+                    updateStatusIndicator('ready');
+                };
+                
+                mediaRecorder.onerror = (event) => {
+                    updateLog('recording', `❌ MediaRecorder错误: ${event.error}`, 'error');
+                    updateStatusIndicator('ready');
+                };
+                
+                // 每1秒获取一次数据
+                mediaRecorder.start(1000);
+                isRecording = true;
+                
+                document.getElementById('start-record-btn').disabled = true;
+                document.getElementById('stop-record-btn').disabled = false;
+                
+                updateLog('recording', '✅ 录音已开始，可以说话测试...', 'success');
+                
+            } catch (error) {
+                updateLog('recording', `❌ 录音启动失败: ${error.message}`, 'error');
+                updateStatusIndicator('ready');
+            }
+        }
+        
+        function stopDetailedRecording() {
+            if (!isRecording || !mediaRecorder) return;
+            
+            mediaRecorder.stop();
+            mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            isRecording = false;
+            
+            document.getElementById('start-record-btn').disabled = false;
+            document.getElementById('stop-record-btn').disabled = true;
+        }
+        
+        // 测试发送音频数据
+        async function testSendAudioData(audioBlob) {
+            updateLog('network', `📤 开始测试音频数据发送... (${audioBlob.size} 字节)`, 'info');
+            
+            const formData = new FormData();
+            formData.append('audio_chunk', audioBlob, 'test_recording.webm');
+            formData.append('source_lang', 'zh');
+            formData.append('target_lang', 'en');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/translate', {
+                    method: 'POST',
+                    body: formData,
+                    timeout: 10000
+                });
+                
+                updateLog('network', `📥 收到响应: ${response.status} ${response.statusText}`, 'info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    updateLog('network', `✅ 翻译成功: ${JSON.stringify(data)}`, 'success');
+                    updateStatusIndicator('success');
+                } else {
+                    const errorText = await response.text();
+                    updateLog('network', `❌ 翻译失败: ${response.status} - ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                updateLog('network', `💥 网络请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试后端连接
+        async function testBackendConnection() {
+            updateLog('network', '🔗 开始测试后端连接...', 'info');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateLog('network', `✅ 后端连接成功: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    updateLog('network', `❌ 后端返回错误: ${response.status} - ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                updateLog('network', `💥 后端连接失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试音频API调用
+        async function testAudioAPICall() {
+            updateLog('network', '🎵 开始测试音频API调用...', 'info');
+            
+            // 创建测试音频数据
+            const audioData = new Uint8Array(2000).fill(128); // 简单的测试数据
+            const blob = new Blob([audioData], { type: 'audio/webm' });
+            
+            const formData = new FormData();
+            formData.append('audio_chunk', blob, 'test.webm');
+            formData.append('source_lang', 'zh');
+            formData.append('target_lang', 'en');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/translate', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateLog('network', `✅ 音频API调用成功: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    updateLog('network', `❌ 音频API调用失败: ${response.status} - ${data.detail || '未知错误'}`, 'error');
+                }
+            } catch (error) {
+                updateLog('network', `💥 音频API调用异常: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试完整工作流程
+        async function testFullWorkflow() {
+            updateLog('network', '🔄 开始测试完整工作流程...', 'info');
+            
+            // 1. 检查系统状态
+            await checkSystemStatus();
+            
+            // 2. 测试后端连接
+            await testBackendConnection();
+            
+            // 3. 测试音频API
+            await testAudioAPICall();
+            
+            updateLog('network', '🏁 完整工作流程测试完成', 'info');
+        }
+        
+        // 清空控制台
+        function clearConsole() {
+            consoleOutput = [];
+            updateConsoleDisplay();
+        }
+        
+        // 页面加载完成后自动检查
+        window.addEventListener('load', () => {
+            console.log('🚀 调试面板已加载');
+            checkSystemStatus();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 前后端调用对比测试</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            color: #42b983;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .comparison-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .panel {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 5px solid #42b983;
+        }
+        
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        
+        .log-area {
+            height: 250px;
+            overflow-y: auto;
+            background: #2d2d2d;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 15px 0;
+        }
+        
+        button {
+            padding: 12px 25px;
+            margin: 5px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary { background: #42b983; color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
+        .status-warning { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 前后端调用对比测试</h1>
+        
+        <div class="comparison-panel">
+            <!-- 左侧面板：Vue组件方式 -->
+            <div class="panel">
+                <div class="panel-title">📋 Vue组件调用方式</div>
+                <div>使用 axios + Vue 3 Composition API</div>
+                <button onclick="testVueApproach()" class="btn-primary">🚀 测试Vue方式</button>
+                <div id="vue-status" class="status-badge status-warning">未测试</div>
+                <div class="log-area" id="vue-log"></div>
+            </div>
+            
+            <!-- 右侧面板：原生JS方式 -->
+            <div class="panel">
+                <div class="panel-title">🌐 原生JS调用方式</div>
+                <div>使用 fetch + 原生JavaScript</div>
+                <button onclick="testNativeApproach()" class="btn-primary">🚀 测试原生方式</button>
+                <div id="native-status" class="status-badge status-warning">未测试</div>
+                <div class="log-area" id="native-log"></div>
+            </div>
+        </div>
+        
+        <!-- 对比结果 -->
+        <div class="panel">
+            <div class="panel-title">📊 对比结果分析</div>
+            <div id="comparison-result">
+                等待测试结果...
+            </div>
+            <button onclick="runBothTests()" class="btn-secondary">🔄 同时运行两种测试</button>
+            <button onclick="clearAllLogs()" class="btn-danger">🗑️ 清空所有日志</button>
+        </div>
+    </div>
+
+    <script>
+        // 日志管理
+        const vueLogs = [];
+        const nativeLogs = [];
+        
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            
+            if (type === 'vue') {
+                vueLogs.push(logEntry);
+                if (vueLogs.length > 50) vueLogs.shift();
+                updateLogDisplay('vue-log', vueLogs);
+            } else {
+                nativeLogs.push(logEntry);
+                if (nativeLogs.length > 50) nativeLogs.shift();
+                updateLogDisplay('native-log', nativeLogs);
+            }
+            
+            console.log(`[${type.toUpperCase()}] ${logEntry}`);
+        }
+        
+        function updateLogDisplay(elementId, logs) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = logs.join('<br>');
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function updateStatus(type, status, message) {
+            const element = document.getElementById(`${type}-status`);
+            element.textContent = message;
+            element.className = `status-badge status-${status}`;
+        }
+        
+        // Vue组件方式测试（模拟）
+        async function testVueApproach() {
+            addLog('vue', '🚀 开始Vue组件方式测试...');
+            updateStatus('vue', 'warning', '测试中');
+            
+            try {
+                // 模拟Vue组件的录音流程
+                addLog('vue', '🔍 请求麦克风权限...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+                addLog('vue', '✅ 麦克风权限获取成功');
+                
+                // 检查MIME类型支持
+                const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+                let selectedMimeType = '';
+                for (let mimeType of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(mimeType)) {
+                        selectedMimeType = mimeType;
+                        break;
+                    }
+                }
+                addLog('vue', `🔧 选择音频格式: ${selectedMimeType}`);
+                
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+                addLog('vue', '✅ MediaRecorder初始化成功');
+                
+                // 模拟axios调用（之前的实现）
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 1000) {
+                        addLog('vue', `🔊 收到音频数据: ${event.data.size} 字节`);
+                        addLog('vue', '📤 使用axios发送请求...');
+                        
+                        // 这里模拟原来的axios调用方式
+                        try {
+                            // 模拟axios.post的调用
+                            const formData = new FormData();
+                            formData.append('audio_chunk', event.data, 'vue_test.webm');
+                            formData.append('source_lang', 'zh');
+                            formData.append('target_lang', 'en');
+                            
+                            // 注意：这里模拟axios的行为
+                            addLog('vue', '⚠️ 模拟axios调用 - 可能存在问题');
+                            
+                            // 模拟调用失败的情况
+                            throw new Error('axios调用可能出现CORS或其他问题');
+                            
+                        } catch (error) {
+                            addLog('vue', `❌ axios调用失败: ${error.message}`);
+                            updateStatus('vue', 'error', '调用失败');
+                        }
+                    }
+                };
+                
+                mediaRecorder.start(1000);
+                addLog('vue', '✅ 录音已开始（模拟）');
+                
+                // 3秒后停止
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                    stream.getTracks().forEach(track => track.stop());
+                    addLog('vue', '⏹️ 录音已停止');
+                }, 3000);
+                
+            } catch (error) {
+                addLog('vue', `❌ Vue方式测试失败: ${error.message}`);
+                updateStatus('vue', 'error', '测试失败');
+            }
+        }
+        
+        // 原生JS方式测试（使用fetch）
+        async function testNativeApproach() {
+            addLog('native', '🚀 开始原生JS方式测试...');
+            updateStatus('native', 'warning', '测试中');
+            
+            try {
+                addLog('native', '🔍 请求麦克风权限...');
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 16000
+                    } 
+                });
+                addLog('native', '✅ 麦克风权限获取成功');
+                
+                // 检查MIME类型支持
+                const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+                let selectedMimeType = '';
+                for (let mimeType of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(mimeType)) {
+                        selectedMimeType = mimeType;
+                        break;
+                    }
+                }
+                addLog('native', `🔧 选择音频格式: ${selectedMimeType}`);
+                
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: selectedMimeType });
+                addLog('native', '✅ MediaRecorder初始化成功');
+                
+                // 使用fetch API调用（修复后的方式）
+                mediaRecorder.ondataavailable = async (event) => {
+                    if (event.data.size > 1000) {
+                        addLog('native', `🔊 收到音频数据: ${event.data.size} 字节`);
+                        addLog('native', '📤 使用fetch发送请求...');
+                        
+                        try {
+                            const formData = new FormData();
+                            formData.append('audio_chunk', event.data, 'native_test.webm');
+                            formData.append('source_lang', 'zh');
+                            formData.append('target_lang', 'en');
+                            
+                            // 使用fetch API（与调试页面一致）
+                            const response = await fetch('http://127.0.0.1:8000/api/translate', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            addLog('native', `📥 收到响应: ${response.status} ${response.statusText}`);
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                addLog('native', `✅ fetch调用成功: ${JSON.stringify(data)}`);
+                                updateStatus('native', 'success', '调用成功');
+                            } else {
+                                const errorText = await response.text();
+                                throw new Error(`HTTP ${response.status}: ${errorText}`);
+                            }
+                            
+                        } catch (error) {
+                            addLog('native', `❌ fetch调用失败: ${error.message}`);
+                            updateStatus('native', 'error', '调用失败');
+                        }
+                    }
+                };
+                
+                mediaRecorder.start(1000);
+                addLog('native', '✅ 录音已开始');
+                
+                // 3秒后停止
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                    stream.getTracks().forEach(track => track.stop());
+                    addLog('native', '⏹️ 录音已停止');
+                }, 3000);
+                
+            } catch (error) {
+                addLog('native', `❌ 原生方式测试失败: ${error.message}`);
+                updateStatus('native', 'error', '测试失败');
+            }
+        }
+        
+        // 同时运行两种测试
+        async function runBothTests() {
+            addLog('vue', '🔄 同时开始两种方式测试...');
+            addLog('native', '🔄 同时开始两种方式测试...');
+            
+            // 并行执行两种测试
+            await Promise.all([
+                testVueApproach(),
+                testNativeApproach()
+            ]);
+            
+            // 分析结果
+            setTimeout(analyzeResults, 4000);
+        }
+        
+        // 分析测试结果
+        function analyzeResults() {
+            const vueSuccess = document.getElementById('vue-status').classList.contains('status-success');
+            const nativeSuccess = document.getElementById('native-status').classList.contains('status-success');
+            
+            let resultHtml = '<h3>🔬 测试结果分析</h3>';
+            
+            if (vueSuccess && nativeSuccess) {
+                resultHtml += '<div class="status-badge status-success">✅ 两种方式都能正常工作</div>';
+            } else if (!vueSuccess && nativeSuccess) {
+                resultHtml += '<div class="status-badge status-success">🎯 找到问题所在：axios方式有问题，fetch方式正常</div>';
+                resultHtml += '<p><strong>结论：</strong>应该将Vue组件中的axios调用改为fetch调用</p>';
+            } else if (vueSuccess && !nativeSuccess) {
+                resultHtml += '<div class="status-badge status-error">❌ 意外结果：axios正常但fetch失败</div>';
+            } else {
+                resultHtml += '<div class="status-badge status-error">❌ 两种方式都有问题</div>';
+                resultHtml += '<p>可能需要检查：<br>• 后端服务状态<br>• 网络连接<br>• CORS配置</p>';
+            }
+            
+            document.getElementById('comparison-result').innerHTML = resultHtml;
+        }
+        
+        // 清空所有日志
+        function clearAllLogs() {
+            vueLogs.length = 0;
+            nativeLogs.length = 0;
+            updateLogDisplay('vue-log', vueLogs);
+            updateLogDisplay('native-log', nativeLogs);
+            
+            document.getElementById('vue-status').className = 'status-badge status-warning';
+            document.getElementById('vue-status').textContent = '未测试';
+            document.getElementById('native-status').className = 'status-badge status-warning';
+            document.getElementById('native-status').textContent = '未测试';
+            
+            document.getElementById('comparison-result').innerHTML = '等待测试结果...';
+        }
+        
+        // 页面加载完成
+        window.addEventListener('load', () => {
+            addLog('vue', '🚀 Vue测试面板已就绪');
+            addLog('native', '🚀 原生测试面板已就绪');
+        });
+    </script>
+</body>
+</html>

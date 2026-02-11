@@ -1,0 +1,25 @@
+# 忽略所有 .pyc 文件
+*.pyc
+
+# 忽略 __pycache__ 目录
+__pycache__/
+
+# 忽略配置文件中的敏感信息
+backend/config/api_config.py
+
+# 忽略日志文件
+*.log
+
+# 忽略虚拟环境目录
+venv/
+env/
+
+# 忽略 IDE 或编辑器生成的文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
