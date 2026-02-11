@@ -29,8 +29,8 @@ import axios from 'axios'
 import { useTranslationStore } from '../stores/translation'
 
 // 配置axios基础URL
-// const API_BASE_URL = 'http://127.0.0.1:8000'  // 正常服务
-const API_BASE_URL = 'http://127.0.0.1:8001'  // 调试捕获服务
+const API_BASE_URL = 'http://127.0.0.1:8000'  // 正常服务
+// const API_BASE_URL = 'http://127.0.0.1:8001'  // 调试捕获服务
 
 const store = useTranslationStore()
 const isRecording = ref(false)

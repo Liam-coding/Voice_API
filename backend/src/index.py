@@ -10,7 +10,7 @@ import traceback
 # 1. 确保路径正确（防止 ModuleNotFoundError）
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from audio.converter import AudioProcessor
+from audio.improved_converter import AudioProcessor
 from adapter.makawaiAdapter import MakawaiClient
 
 # 全局实例

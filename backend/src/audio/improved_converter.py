@@ -1,5 +1,6 @@
-import io
+import librosa
 import numpy as np
+import io
 import base64
 from pydub import AudioSegment
 
@@ -14,6 +15,34 @@ class AudioProcessor:
         """使用 pydub 将 WebM/MP3/WAV 等格式转换为 16kHz 单声道 PCM"""
         try:
             print(f"DEBUG: 收到音频数据，大小: {len(webm_bytes)} 字节")
+            
+            # 首先尝试直接作为PCM数据处理（最常见的情况）
+            if len(webm_bytes) >= 100:
+                try:
+                    # 尝试将数据作为16-bit PCM直接解析
+                    audio_array = np.frombuffer(webm_bytes[:min(len(webm_bytes), 6400)], dtype=np.int16)
+                    if len(audio_array) > 0:
+                        float_audio = audio_array.astype(np.float32) / 32767.0
+                        # 检查是否为有效的音频信号
+                        max_amp = np.max(np.abs(float_audio))
+                        rms = np.sqrt(np.mean(float_audio ** 2))
+                        
+                        print(f"DEBUG: PCM直接解析 - 最大振幅: {max_amp:.4f}, RMS: {rms:.4f}")
+                        
+                        if max_amp > 0.001 and rms > 0.0001 and len(audio_array) >= 160:
+                            # 有效PCM数据，进行重采样到16kHz
+                            target_len = min(len(audio_array), 16000)  # 1秒的采样点
+                            if len(audio_array) > target_len:
+                                step = len(audio_array) // target_len
+                                resampled = audio_array[::step][:target_len]
+                            else:
+                                resampled = audio_array
+                            
+                            pcm_data = resampled.astype(np.int16).tobytes()
+                            print(f"DEBUG: PCM直接处理成功 - 输出大小: {len(pcm_data)} 字节")
+                            return pcm_data, True
+                except Exception as pcm_error:
+                    print(f"DEBUG: PCM直接解析失败: {pcm_error}")
 
             # 1. 尝试使用 pydub 加载音频
             # pydub 的 AudioSegment.from_file 非常强大，能自动识别多种格式
@@ -113,3 +142,33 @@ class AudioProcessor:
         t = np.linspace(0, duration, int(self.sample_rate * duration), False)
         tone = np.sin(2 * np.pi * 440 * t) * 0.3 * 32767
         return tone.astype(np.int16).tobytes()
+
+    def create_api_payload(self, pcm_bytes: bytes) -> dict:
+        """创建API请求负载"""
+        base64_audio = base64.b64encode(pcm_bytes).decode('utf-8')
+        return {"samples_bytes": base64_audio}
+
+    def decode_response(self, response_text: str) -> dict:
+        """解码服务端响应"""
+        try:
+            data = json.loads(response_text)
+            
+            # 解码音频数据
+            if 'audio_data' in data:
+                try:
+                    data['decoded_audio'] = base64.b64decode(data['audio_data'])
+                except Exception as e:
+                    print(f"DEBUG: 音频解码失败: {e}")
+                    data['decoded_audio'] = None
+            
+            return data
+            
+        except Exception as e:
+            print(f"DEBUG: 响应解码失败: {e}")
+            return {'status': 'error', 'error': str(e)}
+
+
+# 向后兼容的包装类
+class ImprovedAudioProcessor(AudioProcessor):
+    """保持与现有代码兼容的处理器"""
+    pass
